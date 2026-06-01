@@ -15,10 +15,10 @@ jobs:
  
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v24
  
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v24
         with:
           node-version: 24
           cache: npm
@@ -35,7 +35,7 @@ jobs:
  
       - name: Upload Newman reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v24
         with:
           name: newman-reports
           path: reports/
