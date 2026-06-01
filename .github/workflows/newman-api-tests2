@@ -1,0 +1,63 @@
+name: Newman API Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  newman-api-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.3.0"  # Pin to specific patch version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci  # Use npm ci for reproducible installs
+
+      - name: Run Newman API tests
+        run: npm run test:api:ci
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        continue-on-error: true
+        id: tests
+
+      - name: Upload Newman reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-reports-${{ github.run_number }}
+          path: reports/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const testStatus = '${{ steps.tests.outcome }}' === 'success' ? '✅' : '❌';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${testStatus} Newman API Tests: ${{ steps.tests.outcome }}`
+            });
+
+      - name: Fail workflow if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
